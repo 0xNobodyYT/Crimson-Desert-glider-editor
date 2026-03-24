@@ -1,46 +1,74 @@
 @echo off
 setlocal
+
 set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
-set "DEFAULT_GAME_DIR=E:\Program Files\Steam\steamapps\common\Crimson Desert"
-if exist "%SCRIPT_DIR%\0008\0.paz" set "DEFAULT_GAME_DIR=%SCRIPT_DIR%"
+
+set "DEFAULT_GAME_DIR="
+call :find_default_game_dir
+
 set "MODE=%~1"
 set "NORMAL=%~2"
 set "FAST=%~3"
 set "GAME_DIR=%~4"
+
 if /I "%~1"=="/?" goto :usage
 if /I "%~1"=="-h" goto :usage
 if /I "%~1"=="--help" goto :usage
+
 if /I "%MODE%"=="patch" goto :cli_patch
+
 if defined MODE (
   set "NORMAL=%~1"
   set "FAST=%~2"
   set "GAME_DIR=%~3"
   if defined NORMAL goto :legacy_patch
 )
+
 goto :interactive
+
 :interactive
 cls
 echo Crimson Desert Glide Patcher
 echo.
-echo What this tool can do:
-echo   1. Patch glide stamina values with your custom numbers.
-echo   2. Exit
+echo This tool patches glide stamina values with your custom numbers.
 echo.
-echo Default in-game glide values:
-echo   Normal glide = 25
-echo   Fast glide   = 50
+echo Default in-game Stamina Spent values:
+echo   Normal glide Stamina Spent = 25
+echo   Fast glide Stamina Spent   = 50
+echo.
+echo Value guide:
+echo   Lower numbers = less stamina spent = longer glide.
+echo   Higher numbers = more stamina spent = shorter glide.
+echo   Vanilla example: 25 and 50
+echo   Balanced example: 10 and 20
+echo   Long-glide example: 2 and 5
 echo.
 echo Folder instructions:
 echo   Enter your Crimson Desert game folder path.
-echo   If this BAT is already inside the game's folder, just press Enter.
-echo   Current default folder: %DEFAULT_GAME_DIR%
+echo   If this BAT is inside the game's folder, just press Enter.
+if defined DEFAULT_GAME_DIR (
+  echo   Auto-detected folder: %DEFAULT_GAME_DIR%
+) else (
+  echo   Auto-detect did not find the game folder, so type it manually.
+)
 echo.
+
 :prompt_game_dir
 set "GAME_DIR="
-set /p "GAME_DIR=Game folder path [%DEFAULT_GAME_DIR%]: "
-if not defined GAME_DIR set "GAME_DIR=%DEFAULT_GAME_DIR%"
+if defined DEFAULT_GAME_DIR (
+  set /p "GAME_DIR=Game folder path [%DEFAULT_GAME_DIR%]: "
+  if not defined GAME_DIR set "GAME_DIR=%DEFAULT_GAME_DIR%"
+) else (
+  set /p "GAME_DIR=Game folder path: "
+)
 call :normalize_game_dir
+if not defined GAME_DIR (
+  echo.
+  echo Please enter a valid Crimson Desert folder path.
+  echo.
+  goto :prompt_game_dir
+)
 if not exist "%GAME_DIR%\0008\0.paz" (
   echo.
   echo Could not find "%GAME_DIR%\0008\0.paz"
@@ -48,10 +76,11 @@ if not exist "%GAME_DIR%\0008\0.paz" (
   echo.
   goto :prompt_game_dir
 )
+
 :prompt_action
 echo.
 echo Select an action:
-echo   1. Patcher
+echo   1. Patch glide values
 echo   2. Exit
 set "ACTION="
 set /p "ACTION=Enter 1 or 2: "
@@ -60,22 +89,25 @@ if "%ACTION%"=="2" goto :finish
 echo.
 echo Invalid selection.
 goto :prompt_action
+
 :interactive_patch
 echo.
 echo Enter your custom glide stamina values.
-echo Default normal glide is 25.
-echo Default fast glide is 50.
-echo Example mod values: 2 and 5
+echo Default normal glide Stamina Spent is 25.
+echo Default fast glide Stamina Spent is 50.
+echo Lower numbers spend less stamina and make glide last longer.
+echo Higher numbers spend more stamina and make glide drain faster.
 echo Exact 0 is not supported by this patcher.
 echo.
 set "NORMAL="
 set "FAST="
-set /p "NORMAL=Normal glide cost [25]: "
-set /p "FAST=Fast glide cost [50]: "
+set /p "NORMAL=Normal glide Stamina Spent [25]: "
+set /p "FAST=Fast glide Stamina Spent [50]: "
 if not defined NORMAL set "NORMAL=25"
 if not defined FAST set "FAST=50"
 set "MODE=patch"
 goto :run
+
 :cli_patch
 if not defined NORMAL (
   echo Missing normal glide cost.
@@ -85,7 +117,16 @@ if not defined FAST (
   echo Missing fast glide cost.
   goto :usage_error
 )
-if not defined GAME_DIR set "GAME_DIR=%DEFAULT_GAME_DIR%"
+if not defined GAME_DIR (
+  if defined DEFAULT_GAME_DIR (
+    set "GAME_DIR=%DEFAULT_GAME_DIR%"
+  ) else (
+    echo.
+    echo Could not auto-detect the game folder.
+    echo Pass the Crimson Desert folder path explicitly.
+    goto :usage_error
+  )
+)
 call :normalize_game_dir
 if not exist "%GAME_DIR%\0008\0.paz" (
   echo.
@@ -94,12 +135,22 @@ if not exist "%GAME_DIR%\0008\0.paz" (
   goto :finish
 )
 goto :run
+
 :legacy_patch
 if not defined FAST (
   echo Missing fast glide cost.
   goto :usage_error
 )
-if not defined GAME_DIR set "GAME_DIR=%DEFAULT_GAME_DIR%"
+if not defined GAME_DIR (
+  if defined DEFAULT_GAME_DIR (
+    set "GAME_DIR=%DEFAULT_GAME_DIR%"
+  ) else (
+    echo.
+    echo Could not auto-detect the game folder.
+    echo Pass the Crimson Desert folder path explicitly.
+    goto :usage_error
+  )
+)
 set "MODE=patch"
 call :normalize_game_dir
 if not exist "%GAME_DIR%\0008\0.paz" (
@@ -109,15 +160,31 @@ if not exist "%GAME_DIR%\0008\0.paz" (
   goto :finish
 )
 goto :run
+
+:find_default_game_dir
+if exist "%SCRIPT_DIR%\0008\0.paz" (
+  set "DEFAULT_GAME_DIR=%SCRIPT_DIR%"
+  exit /b 0
+)
+
+for %%D in (C D E F G H I J K L M N O P Q R S T U V W X Y Z) do (
+  if not defined DEFAULT_GAME_DIR if exist "%%D:\Program Files\Steam\steamapps\common\Crimson Desert\0008\0.paz" set "DEFAULT_GAME_DIR=%%D:\Program Files\Steam\steamapps\common\Crimson Desert"
+  if not defined DEFAULT_GAME_DIR if exist "%%D:\Steam\steamapps\common\Crimson Desert\0008\0.paz" set "DEFAULT_GAME_DIR=%%D:\Steam\steamapps\common\Crimson Desert"
+  if not defined DEFAULT_GAME_DIR if exist "%%D:\SteamLibrary\steamapps\common\Crimson Desert\0008\0.paz" set "DEFAULT_GAME_DIR=%%D:\SteamLibrary\steamapps\common\Crimson Desert"
+)
+exit /b 0
+
 :normalize_game_dir
 set "GAME_DIR=%GAME_DIR:"=%"
 if "%GAME_DIR:~-1%"=="\" set "GAME_DIR=%GAME_DIR:~0,-1%"
 exit /b 0
+
 :run
 set "CD_GLIDE_MODE=%MODE%"
 set "CD_GLIDE_GAME_DIR=%GAME_DIR%"
 set "CD_GLIDE_NORMAL=%NORMAL%"
 set "CD_GLIDE_FAST=%FAST%"
+
 echo.
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference = 'Stop'; try {" ^
@@ -171,22 +238,23 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "Assert-Context $blob $fastOffset $fastPrefix $fastSuffix 'Fast glide';" ^
   "$backupPath = Join-Path (Split-Path -Parent $pazPath) '0.paz.glide_patcher_backup';" ^
   "if ($mode -eq 'patch') { " ^
-  "  $normal = Parse-Cost $normalText 'Normal glide cost';" ^
-  "  $fast = Parse-Cost $fastText 'Fast glide cost';" ^
+  "  $normal = Parse-Cost $normalText 'Normal glide Stamina Spent';" ^
+  "  $fast = Parse-Cost $fastText 'Fast glide Stamina Spent';" ^
   "  if (-not (Test-Path -LiteralPath $backupPath)) { Copy-Item -LiteralPath $pazPath -Destination $backupPath; Write-Host ('Backup created: ' + $backupPath) } else { Write-Host ('Backup exists:  ' + $backupPath) };" ^
   "  $normalBytes = Get-Low16Bytes $normal.Scaled;" ^
   "  $fastBytes = Get-Low16Bytes $fast.Scaled;" ^
   "  Write-Bytes $pazPath $baseOffset $normalBytes;" ^
   "  Write-Bytes $pazPath $fastOffset $fastBytes;" ^
   "  Write-Host ('Patched:      ' + $pazPath);" ^
-  "  Write-Host ('Normal glide: ' + $normal.Value + ' -> ' + ([System.BitConverter]::ToString($normalBytes).Replace('-', ' ')));" ^
-  "  Write-Host ('Fast glide:   ' + $fast.Value + ' -> ' + ([System.BitConverter]::ToString($fastBytes).Replace('-', ' ')));" ^
+  "  Write-Host ('Normal glide Stamina Spent: ' + $normal.Value + ' -> ' + ([System.BitConverter]::ToString($normalBytes).Replace('-', ' ')));" ^
+  "  Write-Host ('Fast glide Stamina Spent:   ' + $fast.Value + ' -> ' + ([System.BitConverter]::ToString($fastBytes).Replace('-', ' ')));" ^
   "  Write-Host 'Scope: shared glide/flight roots for Damian, CrowWing, and RocketPack.';" ^
   "} else { throw ('Unknown mode: ' + $mode + '. This patcher only supports patch mode.') };" ^
   "$currentBase = Read-Bytes $pazPath $baseOffset 2;" ^
   "$currentFast = Read-Bytes $pazPath $fastOffset 2;" ^
   "Write-Host ('Bytes now:     normal=' + ([System.BitConverter]::ToString($currentBase).Replace('-', ' ')) + ' fast=' + ([System.BitConverter]::ToString($currentFast).Replace('-', ' ')));" ^
   "} catch { [Console]::Error.WriteLine($_.Exception.Message); exit 1 }"
+
 if errorlevel 1 (
   echo.
   echo Operation failed.
@@ -194,16 +262,21 @@ if errorlevel 1 (
   echo.
   echo Patch complete.
 )
+
 goto :finish
+
 :usage_error
 echo.
+
 :usage
 echo Usage:
 echo   %~nx0
 echo   %~nx0 patch 2 5 "E:\Program Files\Steam\steamapps\common\Crimson Desert"
+echo   %~nx0 patch 2 5 "D:\SteamLibrary\steamapps\common\Crimson Desert"
 echo.
 echo Legacy shortcut:
 echo   %~nx0 2 5 "E:\Program Files\Steam\steamapps\common\Crimson Desert"
+
 :finish
 set "FINAL_EXIT_CODE=%ERRORLEVEL%"
 echo.
