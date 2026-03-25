@@ -1,6 +1,6 @@
 # Stamina Glider Roll Editor
 
-This is the previous combined version that edits:
+This is the combined version that edits:
 
 - Normal glide `Stamina Spent`
 - Fast glide `Stamina Spent`
